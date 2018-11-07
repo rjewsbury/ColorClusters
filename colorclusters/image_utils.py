@@ -1,7 +1,8 @@
 from math import inf
 from PIL import Image, ImagePalette
+from colorclusters.distance import euclidean
 
-def get_closest_color_index(pixel, colors, distance):
+def get_closest_color_index(pixel, colors, distance=euclidean):
     min_dist = inf
     index = -1
     # compare against each color, and choose the closest
@@ -12,7 +13,7 @@ def get_closest_color_index(pixel, colors, distance):
             index = i
     return index
 
-def map_to_paletted_image(img, colors, distance):
+def map_to_paletted_image(img, colors, distance=euclidean):
     """
     Converts an RGB or RGBA image to an Indexed-Color image.
     :param img: an Image object with 'RGB' or 'RGBA' mode
