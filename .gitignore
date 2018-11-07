@@ -1,0 +1,9 @@
+
+.idea/workspace.xml
+*.iws
+
+__pycache__
+.cache
+*.pyc
+*.egg
+*.egg-info
