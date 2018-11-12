@@ -1,8 +1,7 @@
 from .distance import euclidean
 from math import inf
 from random import randint
-import colorclusters.image_utils as utils
-
+from colorclusters.closest_color import map_pixels_to_closest_color_index
 
 def _choose_initial_centroids(k_value, datapoints):
     if not datapoints:
@@ -65,7 +64,7 @@ class KMeans():
     def get_clustering(self):
         # dont re-compute the clustering if it's already been computed
         if self.clustering is None:
-            self.clustering = utils.map_pixels_to_closest_color_index(self.data, self.centroids, self.dist)
+            self.clustering = map_pixels_to_closest_color_index(self.data, self.centroids, self.dist)
         return self.clustering
 
     def get_sum_square_error(self):
