@@ -3,29 +3,18 @@ This module provides a collection of distance formulas for comparing colors.
 """
 
 
-def _default_scale():
+def norm_distance(p=2):
     """
-    A generator for the 1-vector in arbitrary dimensions. used as a default value for the scaled norm distance.
-    :return: a generator that always returns 1
-    """
-    while True:
-        yield 1
-
-
-def norm_distance(p=2, scale=_default_scale()):
-    """
-    Creates a function that computes the p-norm distance after scaling the input vectors.
+    Creates a function that computes the p-norm distance.
     The distance function takes two vectors x,y as tuples. if they are different lengths, only the shared
     dimensions are used for the computation (i.e ||(x,y,z)-(x,y,z,w)|| would ignore the w-dimension)
     :param p:       the p-value used for the p-norm distance. must be >= 1 to preserve the triangle inequality
-    :param scale:   a vector that scales the input vectors component-wise.
-                        if dimensions are missing, they are treated as 0
     :return:        a p-norm distance function
     """
 
     def calculate_dist(x, y):
         dist = 0
-        for xi, yi, si in zip(x, y, scale):
+        for xi, yi, si in zip(x, y):
             dist += abs(si * (xi - yi)) ** p
         dist = dist ** (1 / p)
         return dist
@@ -55,3 +44,30 @@ def chebyshev(x, y):
         if abs(xi - yi) > dist:
             dist = abs(xi - yi)
     return dist
+
+
+def scaled_distance(distance, scale_vector):
+    """
+    Creates a distance function that scales the input vectors before computing the distance
+    :param distance: a distance function
+    :param scale:   a vector that scales the input vectors component-wise.
+                        if dimensions are missing, they are treated as 0
+    :return: a new distance function
+    """
+
+    def calculate_dist(x, y):
+        x = list(x)
+        for i in range(len(x)):
+            if i >= len(scale_vector):
+                x[i] = 0
+            else:
+                x[i] *= scale_vector[i]
+        y = list(y)
+        for i in range(len(y)):
+            if i >= len(scale_vector):
+                y[i] = 0
+            else:
+                y[i] *= scale_vector[i]
+        return distance(x, y)
+
+    return calculate_dist
