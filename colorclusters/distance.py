@@ -14,8 +14,8 @@ def norm_distance(p=2):
 
     def calculate_dist(x, y):
         dist = 0
-        for xi, yi, si in zip(x, y):
-            dist += abs(si * (xi - yi)) ** p
+        for xi, yi in zip(x, y):
+            dist += abs(xi - yi) ** p
         dist = dist ** (1 / p)
         return dist
 
