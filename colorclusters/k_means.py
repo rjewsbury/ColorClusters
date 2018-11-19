@@ -72,7 +72,7 @@ class KMeans():
                 self.shift_distance[i] = 0
                 continue
             for d in range(self.dimensions):
-                centroids[i][d] //= count[i]
+                centroids[i][d] /= count[i]
             self.shift_distance[i] = self.dist(self.centroids[i], centroids[i])
 
         # update the centroids to the new averages
@@ -97,6 +97,9 @@ class KMeans():
             self.error = error
         return self.error
 
-    def get_centroids(self):
+    def get_exact_centroids(self):
         """Gets the current centroids."""
         return self.centroids
+
+    def get_centroids(self):
+        return [[int(x) for x in centroid] for centroid in self.centroids]
