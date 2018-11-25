@@ -228,7 +228,7 @@ _mean_shift_args = \
 def run_k_means(image, thread_queue, k_value=4, max_shift=3, distance=dist_func.euclidean):
     # args have to be converted from input strings
     k_value = int(k_value)
-    max_shift = int(max_shift)
+    max_shift = float(max_shift)
     if isinstance(distance, str):
         distance = dist_func.decode_string(distance)
 
