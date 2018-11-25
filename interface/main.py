@@ -153,13 +153,19 @@ class Window(Frame):
 
         arg_entries = {}
         for key in kwargs:
-            Label(options, text=kwargs[key][0]).pack()
-            var = StringVar()
-            var.set(str(kwargs[key][1]))
-            arg_entries[key] = var
-            if key in _dist_param_names:
-                OptionMenu(options, DistanceStringVar(var), *_function_names).pack()
-            Entry(options, textvariable=var).pack()
+            if isinstance(kwargs[key][1],bool):
+                var = BooleanVar()
+                var.set(kwargs[key][1])
+                arg_entries[key] = var
+                Checkbutton(options, text=kwargs[key][0], variable=var).pack(pady=5)
+            else:
+                Label(options, text=kwargs[key][0]).pack()
+                var = StringVar()
+                var.set(str(kwargs[key][1]))
+                arg_entries[key] = var
+                if key in _dist_param_names:
+                    OptionMenu(options, DistanceStringVar(var), *_function_names).pack()
+                Entry(options, textvariable=var).pack(pady=5)
 
         # capture the algorithm. not sure if this is necessary to build the closure?
         algorithm_runner = algorithm
@@ -220,30 +226,34 @@ class Window(Frame):
 _k_mean_args = \
     {'k_value': ('K Value:', 4),
      'max_shift': ('End if shift less than:', 3),
-     'distance': ('Distance function:', 'euclidean')}
+     'distance': ('Distance function:', 'euclidean'),
+     'plus_plus': ('Use K-Means++', True)}
 _mean_shift_args = \
     {'distance': ('Distance function:', 'euclidean')}
 
 
-def run_k_means(image, thread_queue, k_value=4, max_shift=3, distance=dist_func.euclidean):
+def run_k_means(image, thread_queue, k_value=4, max_shift=3, plus_plus=False, distance=dist_func.euclidean):
     # args have to be converted from input strings
     k_value = int(k_value)
     max_shift = float(max_shift)
+    plus_plus = bool(plus_plus)
     if isinstance(distance, str):
         distance = dist_func.decode_string(distance)
 
     # initialize algorithm
-    k_means = KMeans(k_value, list(image.getdata()), distance)
+    thread_queue.put("Choosing initial centroids")
+    k_means = KMeans(k_value, list(image.getdata()), distance, use_kmeans_plus_plus=plus_plus)
     shift = max_shift + 1  # arbitrary value greater than max, so that the loop is entered
     i = 0
 
     # run loop with display output
+    thread_queue.put("Shifting centroids")
     while shift > max_shift:
         i += 1
         k_means.shift_centroids()
         shift = max(k_means.shift_distance)
         thread_queue.put("Iteration: %d, Shift: %.2f" % (i, shift))
-
+    thread_queue.put("Iteration: %d, Shift: %.2f\nBuilding final image" % (i, shift))
     # create and send final result
     res_image = img_utils.map_index_to_paletted_image(
         image.size,
@@ -251,7 +261,7 @@ def run_k_means(image, thread_queue, k_value=4, max_shift=3, distance=dist_func.
         k_means.get_centroids())
 
     thread_queue.put(res_image)
-    thread_queue.put("SSE: %d" % k_means.get_sum_square_error())
+    thread_queue.put("Iterations: %d\nSSE: %d" % (i,k_means.get_sum_square_error()))
 
 
 def run_mean_shift(image, thread_queue, distance=dist_func.euclidean):

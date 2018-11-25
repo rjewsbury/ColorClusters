@@ -1,16 +1,16 @@
 from math import inf
-from random import randint
+from random import randrange, choices
+from collections import Counter
 from .distance import euclidean
 from .closest_color import get_closest_color_index, map_pixels_to_closest_color_index, get_sum_squared_error
 
-# TODO: Implement K-Means++ algorithm for picking initial centroids? More complex, but converges faster
 
 class KMeans():
     """
     Stores the state of the current iteration of K-Means. Allows more control over how the algorithm proceeds
     between iterations, and allows for more types of result data.
     """
-    def __init__(self, k_value, datapoints, distance=euclidean, use_histogram=True):
+    def __init__(self, k_value, datapoints, distance=euclidean, use_histogram=True, use_kmeans_plus_plus=False):
         """
         Begins the K-Means algorithm on the given datapoints.
         :param k_value: the number of clusters to split the data into
@@ -25,8 +25,11 @@ class KMeans():
         self.data = datapoints
         self.use_histogram = use_histogram
 
-        if use_histogram:
+        # k_means_plus_plus requires the histogram and a list of unique points
+        if use_histogram or use_kmeans_plus_plus:
             self.histogram = self.create_histogram()
+            if use_kmeans_plus_plus:
+                self.unique = list(self.histogram)
 
         self.dist = distance
         # the dimensionality of the data space. typically 3 for RGB or 4 for RGBA
@@ -38,16 +41,39 @@ class KMeans():
         # the Sum Squared Error of the current clustering. only computed when needed
         self.error = None
         # the centers of each cluster. Initially chosen randomly
-        self.centroids = [datapoints[randint(0, len(datapoints))] for i in range(k_value)]
+        if use_kmeans_plus_plus:
+            self.k_means_plus_plus()
+        else:
+            self.centroids = [datapoints[randrange(len(datapoints))] for i in range(k_value)]
+
+    def k_means_plus_plus(self):
+        """Uses weighted probability to choose the initial centroids"""
+        self.centroids = []
+
+        #pick a first point
+        point = self.data[randrange(len(self.data))]
+        self.centroids.append(point)
+        weights = [(self.dist(point,x)**2) * self.histogram[x] for x in self.unique]
+
+        for i in range(1,self.k_value):
+            point = choices(self.unique,weights)[0]
+            self.centroids.append(point)
+            #update new weights
+            for j,x in enumerate(self.unique):
+                weight = (self.dist(point,x)**2) * self.histogram[x]
+                if weight < weights[j]:
+                    weights[j] = weight
 
     def create_histogram(self):
-        histogram = {}
-        for pixel in self.data:
-            if pixel in histogram:
-                histogram[pixel] += 1
-            else:
-                histogram[pixel] = 1
-        return histogram
+        """gets the counts of items in data."""
+
+        # histogram = {}
+        # for pixel in self.data:
+        #     histogram[pixel] = histogram.get(pixel, 0) + 1
+        # return histogram
+
+        # supposedly Counter is more efficient
+        return Counter(self.data)
 
     def compute_until_predicate(self, predicate, debug=False):
         """
