@@ -1,7 +1,7 @@
 from math import inf
 from random import randint
 from .distance import euclidean
-from .closest_color import map_pixels_to_closest_color_index
+from .closest_color import map_pixels_to_closest_color_index, get_sum_squared_error
 
 # TODO: Implement K-Means++ algorithm for picking initial centroids? More complex, but converges faster
 
@@ -91,10 +91,7 @@ class KMeans():
     def get_sum_square_error(self):
         """Calculates the Sum Square Error of the current clustering."""
         if self.error is None:
-            error = 0
-            for i, pixel in zip(self.get_clustering(), self.data):
-                error += self.dist(self.centroids[i], pixel) ** 2
-            self.error = error
+            self.error = get_sum_squared_error(self.data, self.clustering, self.centroids, self.dist)
         return self.error
 
     def get_exact_centroids(self):
@@ -102,4 +99,5 @@ class KMeans():
         return self.centroids
 
     def get_centroids(self):
+        """Rounds the centroids to an integer before returning them"""
         return [[int(x) for x in centroid] for centroid in self.centroids]

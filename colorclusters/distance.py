@@ -3,6 +3,19 @@ This module provides a collection of distance formulas for comparing colors.
 """
 
 
+def decode_string(string):
+    alg = None
+    try:
+        # they may have tried to call distance functions, or create their own function
+        alg = eval(string)
+        # the algorithm must be a function
+        if not callable(alg):
+            alg = None
+    except SyntaxError:
+        alg = None
+    return alg
+
+
 def norm_distance(p=2):
     """
     Creates a function that computes the p-norm distance.
@@ -71,3 +84,12 @@ def scaled_distance(distance, scale_vector):
         return distance(x, y)
 
     return calculate_dist
+
+
+# shortened names
+def norm(p=2):
+    return norm_distance(p)
+
+
+def scaled(distance, scale_vector):
+    return scaled_distance(distance, scale_vector)
