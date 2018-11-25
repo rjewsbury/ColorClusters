@@ -20,7 +20,7 @@ _delay_time = 1000
 # the default options for a distance function
 _function_names = ['euclidean', 'manhatten', 'chebyshev', 'norm(3)', 'scaled(euclidean,(1,2,3,4))']
 # the parameter names that get interpreted as a distance
-_dist_param_names = ('distance','dist')
+_dist_param_names = ('distance', 'dist')
 
 
 # links two stringvars together.
@@ -45,6 +45,7 @@ class DistanceStringVar(StringVar):
 
         parent.trace("w", parent_callback)
         self.trace("w", distance_callback)
+
 
 class Window(Frame):
     def __init__(self, master=None):
@@ -106,10 +107,6 @@ class Window(Frame):
             return
         self.output_image.save(filename)
 
-    def show_text(self):
-        text = Label(self, text="Testing!")
-        text.pack()
-
     def reload_image_label(self, image, label):
         if image.size[0] > _img_size[0] or image.size[1] > _img_size[1]:
             img = ImageOps.scale(image, min((expected / actual for expected, actual in zip(_img_size, image.size))))
@@ -160,7 +157,7 @@ class Window(Frame):
             var = StringVar()
             var.set(str(kwargs[key][1]))
             arg_entries[key] = var
-            if key in ('distance','dist'):
+            if key in _dist_param_names:
                 OptionMenu(options, DistanceStringVar(var), *_function_names).pack()
             Entry(options, textvariable=var).pack()
 
@@ -176,7 +173,7 @@ class Window(Frame):
                 args[key] = arg_entries[key].get()
             self.run_algorithm(algorithm_runner, **args)
 
-        button = Button(options, text="Run %s"%name, command=callback)
+        button = Button(options, text="Run %s" % name, command=callback)
         button.pack()
         self.button_list.append(button)
         self.algorithms.add(options, text=name)
@@ -210,7 +207,6 @@ class Window(Frame):
                 self.set_button_state(NORMAL)
                 self.algorithm_thread = None
 
-
     def client_exit(self):
         if self.algorithm_thread is not None:
             # do we need to do anything with unfinished threads?
@@ -221,12 +217,12 @@ class Window(Frame):
 # supply parameters for everything except image and thread_queue for the following algorithm running methods
 # each value is a (display_string, initial_value) tuple
 # make sure the parameter for the distance function is in _dist_param_names (e.g.: 'distance')
-_k_mean_args =\
-    {'k_value':     ('K Value:', 4),
-     'max_shift':   ('End if shift less than:', 3),
-     'distance':    ('Distance function:', 'euclidean')}
-_mean_shift_args =\
-    {'distance':    ('Distance function:', 'euclidean')}
+_k_mean_args = \
+    {'k_value': ('K Value:', 4),
+     'max_shift': ('End if shift less than:', 3),
+     'distance': ('Distance function:', 'euclidean')}
+_mean_shift_args = \
+    {'distance': ('Distance function:', 'euclidean')}
 
 
 def run_k_means(image, thread_queue, k_value=4, max_shift=3, distance=dist_func.euclidean):
@@ -238,7 +234,7 @@ def run_k_means(image, thread_queue, k_value=4, max_shift=3, distance=dist_func.
 
     # initialize algorithm
     k_means = KMeans(k_value, list(image.getdata()), distance)
-    shift = max_shift + 1   # arbitrary value greater than max, so that the loop is entered
+    shift = max_shift + 1  # arbitrary value greater than max, so that the loop is entered
     i = 0
 
     # run loop with display output
@@ -246,7 +242,7 @@ def run_k_means(image, thread_queue, k_value=4, max_shift=3, distance=dist_func.
         i += 1
         k_means.shift_centroids()
         shift = max(k_means.shift_distance)
-        thread_queue.put("Iteration: %d, Shift: %.2f" % (i,shift))
+        thread_queue.put("Iteration: %d, Shift: %.2f" % (i, shift))
 
     # create and send final result
     res_image = img_utils.map_index_to_paletted_image(
@@ -255,22 +251,22 @@ def run_k_means(image, thread_queue, k_value=4, max_shift=3, distance=dist_func.
         k_means.get_centroids())
 
     thread_queue.put(res_image)
-    thread_queue.put("SSE: %d"%k_means.get_sum_square_error())
+    thread_queue.put("SSE: %d" % k_means.get_sum_square_error())
 
 
 def run_mean_shift(image, thread_queue, distance=dist_func.euclidean):
-    #convert args from input strings
+    # convert args from input strings
     if isinstance(distance, str):
         distance = dist_func.decode_string(distance)
 
     pixels = list(image.getdata())
-    color_palette = mean_shift.mine(pixels,distance_alg=distance)
+    color_palette = mean_shift.mine(pixels, distance_alg=distance)
     new_image = img_utils.map_to_paletted_image(image, color_palette)
 
     thread_queue.put(new_image)
-    thread_queue.put("Colours used: %d\nSSE: %d"%
+    thread_queue.put("Colours used: %d\nSSE: %d" %
                      (len(color_palette),
-                      closest_color.get_sum_squared_error(pixels,list(new_image.getdata()),color_palette,distance)))
+                      closest_color.get_sum_squared_error(pixels, list(new_image.getdata()), color_palette, distance)))
 
 
 if __name__ == '__main__':
