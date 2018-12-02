@@ -264,7 +264,7 @@ def run_mean_shift(image, thread_queue, distance=dist_func.euclidean, max_shift=
 
     pixels = list(image.getdata())
     color_palette = mean_shift.mine(pixels, thread_queue, distance_alg=distance, min_movement=max_shift, max_centroids=max_centroids)
-    new_image = img_utils.map_to_paletted_image(image, color_palette, thread_queue, distance=distance)
+    new_image = img_utils.map_to_paletted_image(image, color_palette, distance=distance, output_queue=thread_queue)
 
     thread_queue.put(new_image)
     thread_queue.put("Colours used: %d\nSSE: %d" %

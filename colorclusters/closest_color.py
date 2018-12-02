@@ -27,7 +27,7 @@ def get_closest_color_index(pixel, colors, distance=euclidean):
     return index
 
 
-def map_pixels_to_closest_color_index(pixels, colors, output_queue=None, distance=euclidean):
+def map_pixels_to_closest_color_index(pixels, colors, distance=euclidean, output_queue=None):
     """
     Computes the closest color for all of a list of points to a color list.
     Remembers past results for repeat pixels to improve performance.
