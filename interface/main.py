@@ -9,6 +9,7 @@ from colorclusters.k_means import KMeans
 import colorclusters.mean_shift as mean_shift
 import colorclusters.distance as dist_func
 import colorclusters.closest_color as closest_color
+from ast import literal_eval
 
 # the maximum size of the image labels
 _img_size = (400, 400)
@@ -18,11 +19,11 @@ _msg_width = 300
 _delay_time = 1000
 
 # the default options for a distance function
-_function_names = ['euclidean', 'manhatten', 'chebyshev', 'norm(3)', 'scaled(euclidean,(1,2,3,4))']
+_function_names = ['euclidean', 'manhattan', 'chebyshev', 'norm(3)', 'hamming']
 # the parameter names that get interpreted as a distance
 _dist_param_names = ('distance', 'dist')
 
-
+# Deprecated. No longer have the dropdown linked to an editable field
 # links two stringvars together.
 # really dumb solution to get the dropdown menu to say "custom" when the user enters something else
 class DistanceStringVar(StringVar):
@@ -74,6 +75,7 @@ class Window(Frame):
         self.timerString = None
         self.thread_queue = queue.Queue()
         self.algorithm_thread = None
+        self.thread_run_flag = None
 
         self.algorithms = Notebook(self)
         self.algorithms.pack(fill=BOTH, expand=1)
@@ -87,6 +89,10 @@ class Window(Frame):
         file.add_command(label="Save Image...", command=self.save_image)
         file.add_command(label="Exit", command=self.client_exit)
         menu.add_cascade(label="File", menu=file)
+
+        ctrl = Menu(menu)
+        ctrl.add_command(label="Suggest Stop", command=self.halt_thread)
+        menu.add_cascade(label="Control", menu=ctrl)
 
     def load_image(self):
         filename = filedialog.askopenfilename(initialdir="../tests/images", title="Choose an image")
@@ -130,8 +136,12 @@ class Window(Frame):
         self.set_button_state(DISABLED)
 
         # set required arguments
+        self.thread_run_flag = BooleanVar()
+        self.thread_run_flag.set(True)
         if 'image' not in kwargs:
             kwargs['image'] = self.input_image
+        if 'run_var' not in kwargs:
+            kwargs['run_var'] = self.thread_run_flag
         if 'thread_queue' not in kwargs:
             kwargs['thread_queue'] = self.thread_queue
 
@@ -142,6 +152,10 @@ class Window(Frame):
             daemon=True)
         self.algorithm_thread.start()
         self.after(_delay_time, self.listen_for_result)
+
+    def halt_thread(self):
+        if self.thread_run_flag is not None:
+            self.thread_run_flag.set(False)
 
     def add_algorithm(self, name, algorithm, **kwargs):
         options = Frame(self.algorithms)
@@ -164,8 +178,15 @@ class Window(Frame):
                 var.set(str(kwargs[key][1]))
                 arg_entries[key] = var
                 if key in _dist_param_names:
-                    OptionMenu(options, DistanceStringVar(var), *_function_names).pack()
-                Entry(options, textvariable=var).pack(pady=5)
+                    OptionMenu(options, var, *_function_names).pack(pady=5)
+                    Label(options, text="Scale factor:").pack()
+                    var = StringVar()
+                    var.set("(1,1,1,1)")
+                    arg_entries[key+"_scale_"]=var
+
+                    Entry(options, textvariable=var).pack(pady=5)
+                else:
+                    Entry(options, textvariable=var).pack(pady=5)
 
         # capture the algorithm. not sure if this is necessary to build the closure?
         algorithm_runner = algorithm
@@ -176,7 +197,17 @@ class Window(Frame):
             self.timerCount = 0
             args = {}
             for key in arg_entries:
-                args[key] = arg_entries[key].get()
+                if key in _dist_param_names:
+                    scale = literal_eval(arg_entries[key+"_scale_"].get())
+                    func = dist_func.decode_string(arg_entries[key].get())
+                    if scale.count(1) != len(scale):
+                        print('using scale')
+                        func = dist_func.scaled_distance(func,scale)
+                    args[key] = func
+                elif key.endswith("_scale_"):
+                    pass #ignore the internally used scale field
+                else:
+                    args[key] = arg_entries[key].get()
             self.run_algorithm(algorithm_runner, **args)
 
         button = Button(options, text="Run %s" % name, command=callback)
@@ -203,6 +234,7 @@ class Window(Frame):
                     self.algorithm_thread.join()
                     # clear the thread
                     self.algorithm_thread = None
+                    self.thread_run_flag = None
         except queue.Empty:
             # continue waiting for an image result
             if self.algorithm_thread is not None and self.algorithm_thread.is_alive():
@@ -212,6 +244,7 @@ class Window(Frame):
                 self.messageString.set("Error: Thread stopped unexpectedly.")
                 self.set_button_state(NORMAL)
                 self.algorithm_thread = None
+                self.thread_run_flag = None
 
     def client_exit(self):
         if self.algorithm_thread is not None:
@@ -232,7 +265,7 @@ _mean_shift_args = \
     {'distance': ('Distance function:', 'euclidean')}
 
 
-def run_k_means(image, thread_queue, k_value=4, max_shift=3, plus_plus=False, distance=dist_func.euclidean):
+def run_k_means(image, run_var, thread_queue, k_value=4, max_shift=3, plus_plus=False, distance=dist_func.euclidean):
     # args have to be converted from input strings
     k_value = int(k_value)
     max_shift = float(max_shift)
@@ -248,7 +281,7 @@ def run_k_means(image, thread_queue, k_value=4, max_shift=3, plus_plus=False, di
 
     # run loop with display output
     thread_queue.put("Shifting centroids")
-    while shift > max_shift:
+    while shift > max_shift and run_var.get():
         i += 1
         k_means.shift_centroids()
         shift = max(k_means.shift_distance)
@@ -264,7 +297,7 @@ def run_k_means(image, thread_queue, k_value=4, max_shift=3, plus_plus=False, di
     thread_queue.put("Iterations: %d\nSSE: %d" % (i,k_means.get_sum_square_error()))
 
 
-def run_mean_shift(image, thread_queue, distance=dist_func.euclidean):
+def run_mean_shift(image, run_var, thread_queue, distance=dist_func.euclidean):
     # convert args from input strings
     if isinstance(distance, str):
         distance = dist_func.decode_string(distance)
