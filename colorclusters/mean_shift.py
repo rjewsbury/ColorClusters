@@ -1,13 +1,12 @@
-from colorclusters import distance, image_utils
+from colorclusters import distance
 from datastructures.EuclideanSpace import EuclideanSpace
-from PIL import Image
-from timeit import default_timer
 
 
-def mine(points, distance_alg=distance.euclidean, max_centroids=256):
+def mine(points, output_thread, distance_alg=distance.euclidean, min_movement=3, max_centroids=256):
     """
     Uses the mean-shift algorithm to produce the set of average points that best represents the points given
     :param points: The points to be mined
+    :param output_thread: 
     :param distance_alg: Distance algorithm used in calculation
     :param max_centroids: The number of centroids to start mining with. Defaults to 256 as that is the maximum
                                 number of colours image_utils.map_to_paletted_images will accept
@@ -39,11 +38,9 @@ def mine(points, distance_alg=distance.euclidean, max_centroids=256):
     # The radius is chosen such that spheres will be as large as possible without any two spheres overlapping initially
     radius = space_length/spheres_per_dimension/2
     centroids = map_centroids_into_space(radius, spheres_per_dimension, num_dimensions, space_min)
-    print(len(points))
     space = EuclideanSpace(points, spheres_per_dimension, space_min, space_max)
-    print(space.total_points)
 
-    final_centroids = find_final_centroids(space, centroids, distance_alg, radius)
+    final_centroids = mine_final_centroids(space, centroids, distance_alg, radius, min_movement, output_thread)
     for centroid in final_centroids:
         for i in range(len(centroid)):
             centroid[i] = int(centroid[i])
@@ -88,20 +85,55 @@ def increment_counters(array, max_val):
         i += 1
 
 
-def find_final_centroids(space, centroids, distance_alg, radius):
+def mine_final_centroids(space, centroids, distance_alg, radius, min_movement, output_thread):
+    print(min_movement)
+    final_centroids = []
+    for i in range(len(centroids)):
+        output_thread.put("Moving centroid %d of %d" % (i+1, len(centroids)))
+        settled = False
+        current_centroid = centroids[i]
+        iteration = 1
+        while not settled:
+            potential_points_in_sphere = space.get_points_in_range(current_centroid, radius)
+            points_in_sphere = get_points_in_sphere(potential_points_in_sphere, current_centroid, distance_alg, radius)
+            if len(points_in_sphere) is 0:
+                break
+            average = get_average_of_points(points_in_sphere)
+            distance_moved = distance_alg(average, current_centroid)
+            current_centroid = average
+            output_thread.put("Moving centroid %d of %d\nIteration: %d, Shift: %f.2" % (i+1, len(centroids), iteration, distance_moved))
+            iteration += 1
+            if distance_moved < min_movement:
+                final_centroids.append(current_centroid)
+                settled = True
+
+    output_thread.put("Pruning similar centroids")
+    prune_similar_points_by_distance(final_centroids, distance_alg, min_movement)
+    output_thread.put("Drawing new image")
+    return final_centroids
+
+
+def find_final_centroids(space, centroids, distance_alg, radius, min_movement, output_thread):
     """
     The core of the algorithm. Recursively move the centroids around until we find all local density maxima
     :param space: All data points in the space
     :param centroids: The potential local maxima
     :param distance_alg: The distance algorithm to use
     :param radius: The radius of every sphere centred at a centroid
+    :param output_thread: A queue used to display information about algorithm status in the UI
     :return: The set of local density maxima
     """
-    min_movement = 5
-    print(min_movement)
     final_centroids = []
+    iteration = 0
+    max_shift_last_iteration = 0
     while len(centroids) > 0:
-        print(len(centroids))
+        iteration += 1
+        if iteration == 1:
+            output_thread.put("Iteration: %d, Centroids Shifting: %d" % (iteration, len(centroids)))
+        else:
+            output_thread.put("Iteration: %d, Centroids Shifting: %d, Max Shift: %f.2"
+                             % (iteration, len(centroids), max_shift_last_iteration))
+        max_shift_last_iteration = 0
         sets_of_points_in_spheres = [None]*len(centroids)
 
         for i, centroid in enumerate(centroids):
@@ -122,13 +154,15 @@ def find_final_centroids(space, centroids, distance_alg, radius):
         for i, centroid in enumerate(centroids):
             average = get_average_of_points(sets_of_points_in_spheres[i])
             distance_moved = distance_alg(average, centroid)
+            if distance_moved > max_shift_last_iteration:
+                max_shift_last_iteration = distance_moved
             centroids[i] = average
             if distance_moved < min_movement:
                 centroids_to_remove.append(centroids[i])
                 final_centroids.append(centroids[i])
         for i in range(len(centroids_to_remove)):
             centroids.remove(centroids_to_remove[i])
-    prune_similar_points_by_distance(final_centroids, distance_alg, radius)
+    prune_similar_points_by_distance(final_centroids, distance_alg, min_movement)
     return final_centroids
 
 
@@ -176,52 +210,17 @@ def get_average_of_points(points):
     return average_point
 
 
-def prune_similar_points_by_intersections_of_sets(centroids, sets_of_points_in_spheres):
-    """
-    Remove centroids from the set based on the similarity between the sets of points within their respective spheres
-    :param centroids: The set of centre points
-    :param sets_of_points_in_spheres: Sets of points contained in the spheres centred at individual centroids. The
-    indices of the set correspond to the indices of centroids
-    :return: Nothing
-    """
-    for i in range(len(sets_of_points_in_spheres)):
-        for j in range(i+1, len(sets_of_points_in_spheres)):
-            if percentage_similar(sets_of_points_in_spheres[i], sets_of_points_in_spheres[j]) > 0.9:
-                centroids[i] = None
-                sets_of_points_in_spheres[i] = None
-                break
-    while None in centroids:
-        centroids.remove(None)
-        sets_of_points_in_spheres.remove(None)
-
-
-def percentage_similar(x, y):
-    """
-    A method to assess the similarity between two sets of points. Similarity is determined
-    :param x: a set
-    :param y: another set
-    :return: the percentage similarity
-    """
-    if len(x) is 0 or len(y) is 0:
-        return 0
-    intersection = 0
-    for item in x:
-        if item in y:
-            intersection += 1
-    return intersection/max(len(y), len(x))
-
-
-def prune_similar_points_by_distance(centroids, distance_alg, radius):
+def prune_similar_points_by_distance(centroids, distance_alg, distinct_distance):
     """
     Remove centroids from the set based on the euclidean distance between centers
     :param centroids: Set of sphere centre points
     :param distance_alg: the distance algorithm to use
-    :param radius: sphere radii
+    :param distinct_distance: How far away two points must be to be considered distinct
     :return: Nothing, sets are changed in place
     """
     for i in range(len(centroids)):
         for j in range(i+1, len(centroids)):
-            if distance_alg(centroids[i], centroids[j]) < radius/50000:
+            if distance_alg(centroids[i], centroids[j]) < distinct_distance:
                 centroids[i] = None
                 break
     while None in centroids:
@@ -230,15 +229,3 @@ def prune_similar_points_by_distance(centroids, distance_alg, radius):
 
 def first(elem):
     return elem[0]
-
-if __name__ == "__main__":
-    image = Image.open('/home/erik/workspace/ColorClusters/tests/git.png')
-    pixels = list(image.getdata())
-    print("picture loaded")
-    start_time = default_timer()
-    color_palette = mine(pixels, distance.euclidean)
-    end_time = default_timer()
-    print((end_time-start_time)//60,"minutes",round((end_time-start_time)%60,3),"seconds")
-    new_image = image_utils.map_to_paletted_image(image, color_palette)
-    new_image.convert('RGBA').show()
-    new_image.save('/home/erik/workspace/ColorClusters/tests/after_mean_shift.png')

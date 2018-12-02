@@ -222,7 +222,8 @@ _k_mean_args = \
      'max_shift': ('End if shift less than:', 3),
      'distance': ('Distance function:', 'euclidean')}
 _mean_shift_args = \
-    {'distance': ('Distance function:', 'euclidean')}
+    {'distance': ('Distance function:', 'euclidean'),
+     'max_shift': ('End if shift less than: ', 3)}
 
 
 def run_k_means(image, thread_queue, k_value=4, max_shift=3, distance=dist_func.euclidean):
@@ -254,13 +255,14 @@ def run_k_means(image, thread_queue, k_value=4, max_shift=3, distance=dist_func.
     thread_queue.put("SSE: %d" % k_means.get_sum_square_error())
 
 
-def run_mean_shift(image, thread_queue, distance=dist_func.euclidean):
+def run_mean_shift(image, thread_queue, distance=dist_func.euclidean, max_shift=3):
     # convert args from input strings
+    max_shift = int(max_shift)
     if isinstance(distance, str):
         distance = dist_func.decode_string(distance)
 
     pixels = list(image.getdata())
-    color_palette = mean_shift.mine(pixels, distance_alg=distance)
+    color_palette = mean_shift.mine(pixels, thread_queue, distance_alg=distance)
     new_image = img_utils.map_to_paletted_image(image, color_palette)
 
     thread_queue.put(new_image)
