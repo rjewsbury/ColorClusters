@@ -13,6 +13,8 @@ def mine(points, output_thread, distance_alg=distance.euclidean, min_movement=3,
     :return: A list of colours that best represent the image
     """
 
+    min_movement = int(min_movement)
+    max_centroids = int(max_centroids)
     num_dimensions = len(points[0])
 
     # determine the size of the space. This assumes the space is dimensionally symmetric
@@ -86,7 +88,6 @@ def increment_counters(array, max_val):
 
 
 def mine_final_centroids(space, centroids, distance_alg, radius, min_movement, output_thread):
-    print(min_movement)
     final_centroids = []
     for i in range(len(centroids)):
         output_thread.put("Moving centroid %d of %d" % (i+1, len(centroids)))
@@ -109,60 +110,7 @@ def mine_final_centroids(space, centroids, distance_alg, radius, min_movement, o
 
     output_thread.put("Pruning similar centroids")
     prune_similar_points_by_distance(final_centroids, distance_alg, min_movement)
-    output_thread.put("Drawing new image")
-    return final_centroids
-
-
-def find_final_centroids(space, centroids, distance_alg, radius, min_movement, output_thread):
-    """
-    The core of the algorithm. Recursively move the centroids around until we find all local density maxima
-    :param space: All data points in the space
-    :param centroids: The potential local maxima
-    :param distance_alg: The distance algorithm to use
-    :param radius: The radius of every sphere centred at a centroid
-    :param output_thread: A queue used to display information about algorithm status in the UI
-    :return: The set of local density maxima
-    """
-    final_centroids = []
-    iteration = 0
-    max_shift_last_iteration = 0
-    while len(centroids) > 0:
-        iteration += 1
-        if iteration == 1:
-            output_thread.put("Iteration: %d, Centroids Shifting: %d" % (iteration, len(centroids)))
-        else:
-            output_thread.put("Iteration: %d, Centroids Shifting: %d, Max Shift: %f.2"
-                             % (iteration, len(centroids), max_shift_last_iteration))
-        max_shift_last_iteration = 0
-        sets_of_points_in_spheres = [None]*len(centroids)
-
-        for i, centroid in enumerate(centroids):
-            if i % 10 == 0:
-                print(i)
-            potential_points_in_sphere = space.get_points_in_range(centroid, radius)
-            points_in_sphere = get_points_in_sphere(potential_points_in_sphere, centroid, distance_alg, radius)
-            if len(points_in_sphere) is 0:
-                centroids[i] = None
-                continue
-            sets_of_points_in_spheres[i] = points_in_sphere
-        while centroids.__contains__(None):
-            centroids.remove(None)
-        while sets_of_points_in_spheres.__contains__(None):
-            sets_of_points_in_spheres.remove(None)
-
-        centroids_to_remove = []
-        for i, centroid in enumerate(centroids):
-            average = get_average_of_points(sets_of_points_in_spheres[i])
-            distance_moved = distance_alg(average, centroid)
-            if distance_moved > max_shift_last_iteration:
-                max_shift_last_iteration = distance_moved
-            centroids[i] = average
-            if distance_moved < min_movement:
-                centroids_to_remove.append(centroids[i])
-                final_centroids.append(centroids[i])
-        for i in range(len(centroids_to_remove)):
-            centroids.remove(centroids_to_remove[i])
-    prune_similar_points_by_distance(final_centroids, distance_alg, min_movement)
+    output_thread.put("%d distinct colors found\nDrawing new image" % len(final_centroids))
     return final_centroids
 
 

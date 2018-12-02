@@ -35,7 +35,7 @@ def map_index_to_paletted_image(size, index_data, colors):
     return palette_image
 
 
-def map_to_paletted_image(img, colors, distance=euclidean):
+def map_to_paletted_image(img, colors, output_queue, distance=euclidean):
     """
     Converts an RGB or RGBA image to an Indexed-Color image.
     :param img: an Image object with 'RGB' or 'RGBA' mode
@@ -47,7 +47,7 @@ def map_to_paletted_image(img, colors, distance=euclidean):
     if img.mode not in ('RGB', 'RGBA'):
         raise ValueError('Incompatible image format')
 
-    index_data = map_pixels_to_closest_color_index(list(img.getdata()),colors,distance)
+    index_data = map_pixels_to_closest_color_index(list(img.getdata()), colors, output_queue, distance)
 
     return map_index_to_paletted_image(img.size, index_data, colors)
 
