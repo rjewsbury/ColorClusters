@@ -27,18 +27,26 @@ def get_closest_color_index(pixel, colors, distance=euclidean):
     return index
 
 
-def map_pixels_to_closest_color_index(pixels, colors, distance=euclidean):
+def map_pixels_to_closest_color_index(pixels, colors, distance=euclidean, output_queue=None):
     """
     Computes the closest color for all of a list of points to a color list.
     Remembers past results for repeat pixels to improve performance.
     :param pixels: a list of n-tuples representing points
     :param colors: a list of n-tuples to compare against
+    :param output_queue: Queue for printing info to the UI
     :param distance: a distance function. uses euclidean by default
     :return: a list of color array indexes, representing the closest color to each pixel
     """
     data = []
     color_map = {}
-    for pixel in list(pixels):
+    percent_complete = 0
+    num_pixels = len(pixels)
+    for i, pixel in enumerate(list(pixels)):
+        if output_queue is not None:
+            percent = int((i/num_pixels)*100)
+            if percent > percent_complete:
+                percent_complete = percent
+                output_queue.put("%d distinct colors found\nDrawing new image\nRemapping pixels: %d%% complete" % (len(colors), percent_complete))
         # if we've already computed the nearest color, use it
         if pixel in color_map:
             data.append(color_map[pixel])
