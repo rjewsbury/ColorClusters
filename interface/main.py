@@ -223,7 +223,7 @@ _k_mean_args = \
      'distance': ('Distance function:', 'euclidean')}
 _mean_shift_args = \
     {'max_shift': ('End if shift less than: ', 3),
-     'max_centroids': ('Initial sampling (max 256): ', 256),
+     'max_centroids': ('Initial sampling (min 16, max 256): ', 256),
      'distance': ('Distance function:', 'euclidean')}
 
 

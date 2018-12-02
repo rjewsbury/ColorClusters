@@ -15,6 +15,8 @@ def mine(points, output_thread, distance_alg=distance.euclidean, min_movement=3,
 
     min_movement = int(min_movement)
     max_centroids = int(max_centroids)
+    if max_centroids > 256 or max_centroids < 16:
+        raise ValueError
     num_dimensions = len(points[0])
 
     # determine the size of the space. This assumes the space is dimensionally symmetric
