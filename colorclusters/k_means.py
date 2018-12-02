@@ -4,6 +4,12 @@ from collections import Counter
 from .distance import euclidean
 from .closest_color import get_closest_color_index, map_pixels_to_closest_color_index, get_sum_squared_error
 
+can_use_choices = True
+try:
+    from random import choices
+except ImportError:
+    # if kmeans is run on python 3.5 or earlier, it wont have access to choices
+    can_use_choices = False
 
 
 class KMeans:
@@ -49,6 +55,11 @@ class KMeans:
 
     def k_means_plus_plus(self):
         """Uses weighted probability to choose the initial centroids"""
+        if not can_use_choices:
+            # we need access to the random choices method for this implementation to run
+            self.centroids = [self.data[randrange(len(self.data))] for i in range(self.k_value)]
+            return
+
         self.centroids = []
 
         #pick a first point
