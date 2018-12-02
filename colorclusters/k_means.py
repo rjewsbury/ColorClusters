@@ -5,7 +5,8 @@ from .distance import euclidean
 from .closest_color import get_closest_color_index, map_pixels_to_closest_color_index, get_sum_squared_error
 
 
-class KMeans():
+
+class KMeans:
     """
     Stores the state of the current iteration of K-Means. Allows more control over how the algorithm proceeds
     between iterations, and allows for more types of result data.
@@ -161,7 +162,7 @@ class KMeans():
         """Gets the closest-color index for each pixel of data for the current centroids."""
         # dont re-compute the clustering if it's already been computed
         if self.clustering is None:
-            self.clustering = map_pixels_to_closest_color_index(self.data, self.centroids, self.dist)
+            self.clustering = map_pixels_to_closest_color_index(self.data, self.centroids, distance=self.dist)
         return self.clustering
 
     def get_sum_square_error(self):
