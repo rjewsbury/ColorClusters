@@ -58,6 +58,11 @@ def chebyshev(x, y):
             dist = abs(xi - yi)
     return dist
 
+def hamming(x,y):
+    dist = 0
+    for xi, yi in zip(x, y):
+        dist += bin(int(xi)^int(yi)).count("1")
+    return dist
 
 def scaled_distance(distance, scale_vector):
     """

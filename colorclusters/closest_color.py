@@ -8,6 +8,7 @@ def get_sum_squared_error(pixels, clustering, centroids, distance=euclidean):
         error += distance(centroids[i], pixel) ** 2
     return error
 
+
 def get_closest_color_index(pixel, colors, distance=euclidean):
     """
     Computes the closest color to a point out of a given color list

@@ -1,9 +1,15 @@
 from math import inf
-from random import randint
+from random import randrange
+from collections import Counter
 from .distance import euclidean
-from .closest_color import map_pixels_to_closest_color_index, get_sum_squared_error
+from .closest_color import get_closest_color_index, map_pixels_to_closest_color_index, get_sum_squared_error
 
-# TODO: Implement K-Means++ algorithm for picking initial centroids? More complex, but converges faster
+can_use_choices = True
+try:
+    from random import choices
+except ImportError:
+    # if kmeans is run on python 3.5 or earlier, it wont have access to choices
+    can_use_choices = False
 
 
 class KMeans:
@@ -11,7 +17,7 @@ class KMeans:
     Stores the state of the current iteration of K-Means. Allows more control over how the algorithm proceeds
     between iterations, and allows for more types of result data.
     """
-    def __init__(self, k_value, datapoints, distance=euclidean):
+    def __init__(self, k_value, datapoints, distance=euclidean, use_histogram=True, use_kmeans_plus_plus=False):
         """
         Begins the K-Means algorithm on the given datapoints.
         :param k_value: the number of clusters to split the data into
@@ -24,6 +30,14 @@ class KMeans:
 
         self.k_value = k_value
         self.data = datapoints
+        self.use_histogram = use_histogram
+
+        # k_means_plus_plus requires the histogram and a list of unique points
+        if use_histogram or use_kmeans_plus_plus:
+            self.histogram = self.create_histogram()
+            if use_kmeans_plus_plus:
+                self.unique = list(self.histogram)
+
         self.dist = distance
         # the dimensionality of the data space. typically 3 for RGB or 4 for RGBA
         self.dimensions = len(datapoints[0])
@@ -34,7 +48,44 @@ class KMeans:
         # the Sum Squared Error of the current clustering. only computed when needed
         self.error = None
         # the centers of each cluster. Initially chosen randomly
-        self.centroids = [datapoints[randint(0, len(datapoints))] for i in range(k_value)]
+        if use_kmeans_plus_plus:
+            self.k_means_plus_plus()
+        else:
+            self.centroids = [datapoints[randrange(len(datapoints))] for i in range(k_value)]
+
+    def k_means_plus_plus(self):
+        """Uses weighted probability to choose the initial centroids"""
+        if not can_use_choices:
+            # we need access to the random choices method for this implementation to run
+            self.centroids = [self.data[randrange(len(self.data))] for i in range(self.k_value)]
+            return
+
+        self.centroids = []
+
+        #pick a first point
+        point = self.data[randrange(len(self.data))]
+        self.centroids.append(point)
+        weights = [(self.dist(point,x)**2) * self.histogram[x] for x in self.unique]
+
+        for i in range(1,self.k_value):
+            point = choices(self.unique,weights)[0]
+            self.centroids.append(point)
+            #update new weights
+            for j,x in enumerate(self.unique):
+                weight = (self.dist(point,x)**2) * self.histogram[x]
+                if weight < weights[j]:
+                    weights[j] = weight
+
+    def create_histogram(self):
+        """gets the counts of items in data."""
+
+        # histogram = {}
+        # for pixel in self.data:
+        #     histogram[pixel] = histogram.get(pixel, 0) + 1
+        # return histogram
+
+        # supposedly Counter is more efficient
+        return Counter(self.data)
 
     def compute_until_predicate(self, predicate, debug=False):
         """
@@ -54,8 +105,44 @@ class KMeans:
         """
         self.compute_until_predicate(lambda self: max(self.shift_distance) <= max_distance, debug)
 
+    def shift_centroids_histogram(self):
+        """
+        Computes one iteration of K-means, and shifts the centroids to a better position.
+        Uses the histogram to improve efficiency
+        """
+        centroids = [[0] * self.dimensions for i in range(self.k_value)]
+        count = [0] * self.k_value
+
+        # count and sum each cluster set in preparation for averaging
+        for pixel in self.histogram:
+            i = get_closest_color_index(pixel,self.centroids, self.dist)
+            count[i] += self.histogram[pixel]
+            for d in range(self.dimensions):
+                centroids[i][d] += pixel[d]*self.histogram[pixel]
+
+        # take the average of all points in the cluster
+        for i in range(self.k_value):
+            # if none of the points were closest to this point, leave it where it is
+            if count[i] == 0:
+                centroids[i] = self.centroids[i]
+                self.shift_distance[i] = 0
+                continue
+            for d in range(self.dimensions):
+                centroids[i][d] /= count[i]
+            self.shift_distance[i] = self.dist(self.centroids[i], centroids[i])
+
+        # update the centroids to the new averages
+        self.centroids = centroids
+        # we don't know the new derived values for this set of centroids
+        self.clustering = None
+        self.error = None
+
     def shift_centroids(self):
         """Computes one iteration of K-means, and shifts the centroids to a better position"""
+        if self.use_histogram:
+            self.shift_centroids_histogram()
+            return
+
         centroids = [[0] * self.dimensions for i in range(self.k_value)]
         count = [0] * self.k_value
 
