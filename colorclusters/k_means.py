@@ -1,5 +1,5 @@
 from math import inf
-from random import randrange, choices
+from random import randrange
 from collections import Counter
 from .distance import euclidean
 from .closest_color import get_closest_color_index, map_pixels_to_closest_color_index, get_sum_squared_error
