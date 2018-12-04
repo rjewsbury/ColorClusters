@@ -104,7 +104,7 @@ def mine_final_centroids(space, centroids, distance_alg, radius, min_movement, o
             average = get_average_of_points(points_in_sphere)
             distance_moved = distance_alg(average, current_centroid)
             current_centroid = average
-            output_thread.put("Moving centroid %d of %d\nIteration: %d, Shift: %f.2" % (i+1, len(centroids), iteration, distance_moved))
+            output_thread.put("Moving centroid %d of %d\nIteration: %d, Shift: %.2f" % (i+1, len(centroids), iteration, distance_moved))
             iteration += 1
             if distance_moved < min_movement:
                 final_centroids.append(current_centroid)
