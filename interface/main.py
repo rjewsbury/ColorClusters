@@ -19,7 +19,7 @@ _msg_width = 300
 _delay_time = 1000
 
 # the default options for a distance function
-_function_names = ['euclidean', 'manhattan', 'chebyshev', 'norm(3)', 'hamming']
+_function_names = ['euclidean', 'manhattan', 'chebyshev', 'norm(3)']
 # the parameter names that get interpreted as a distance
 _dist_param_names = ('distance', 'dist')
 
@@ -262,8 +262,8 @@ _k_mean_args = \
      'distance': ('Distance function:', 'euclidean'),
      'plus_plus': ('Use K-Means++', True)}
 _mean_shift_args = \
-    {'max_shift': ('End if shift less than: ', 3),
-     'max_centroids': ('Initial sampling (min 16, max 256): ', 256),
+    {'max_shift': ('End if shift less than:', 3),
+     'max_centroids': ('Initial sampling (min 16, max 256):', 256),
      'distance': ('Distance function:', 'euclidean')}
 
 
@@ -316,7 +316,7 @@ def run_mean_shift(image, run_var, thread_queue, distance=dist_func.euclidean, m
 
 if __name__ == '__main__':
     root = Tk()
-    root.geometry(str(_img_size[0] * 3) + "x" + str(_img_size[1]))
+    root.geometry(str(_img_size[0] * 2 + 200) + "x" + str(_img_size[1]))
     app = Window(root)
     app.add_algorithm("K-Means", run_k_means, **_k_mean_args)
     app.add_algorithm("Mean-Shift", run_mean_shift, **_mean_shift_args)
