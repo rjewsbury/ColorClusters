@@ -4,11 +4,8 @@ from tkinter import filedialog
 from PIL import Image, ImageTk, ImageOps
 import threading
 import queue
-import colorclusters.image_utils as img_utils
+from colorclusters import image_utils as img_utils, mean_shift, closest_color, distance as dist_func
 from colorclusters.k_means import KMeans
-import colorclusters.mean_shift as mean_shift
-import colorclusters.distance as dist_func
-import colorclusters.closest_color as closest_color
 from ast import literal_eval
 
 # the maximum size of the image labels
